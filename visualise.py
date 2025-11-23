@@ -8,6 +8,7 @@ from data import (
     build_student_graph,
     graph_to_node_dataframe,
     graph_to_edge_dataframe,
+    build_student_table,
     DEFAULT_CONFIG,
     compute_graph_metrics,
     infer_config,
@@ -349,6 +350,50 @@ def run_streamlit_app():
                     st.sidebar.write(f"  shared: {shared_multi}")
     else:
         st.error("Plotly not installed. Run: pip install plotly")
+
+    # Data table view
+    st.markdown("---")
+    st.subheader("Student Data Table")
+    student_table = build_student_table(G, base_df, config)
+    
+    # Filtering controls
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        filter_name = st.text_input("Filter by name/id", "")
+    with col2:
+        filter_community = st.selectbox("Community", [-1] + sorted(student_table["community"].unique().tolist()), index=0)
+    with col3:
+        filter_cgpa_min = st.number_input("Min CGPA", 0.0, 10.0, 0.0, 0.1)
+    
+    # Apply filters
+    filtered_df = student_table.copy()
+    if filter_name:
+        filtered_df = filtered_df[
+            (filtered_df["name"].str.contains(filter_name, case=False, na=False)) |
+            (filtered_df["id"].astype(str).str.contains(filter_name, case=False, na=False))
+        ]
+    if filter_community >= 0:
+        filtered_df = filtered_df[filtered_df["community"] == filter_community]
+    
+    # CGPA filtering (if column exists)
+    if "cgpa" in filtered_df.columns:
+        try:
+            filtered_df["cgpa"] = pd.to_numeric(filtered_df["cgpa"], errors="coerce")
+            filtered_df = filtered_df[filtered_df["cgpa"] >= filter_cgpa_min]
+        except Exception:
+            pass
+    
+    # Display table with sorting capability
+    st.dataframe(filtered_df, use_container_width=True, hide_index=True)
+    
+    # Export filtered data as CSV
+    csv_data = filtered_df.to_csv(index=False)
+    st.download_button(
+        label="Download filtered data as CSV",
+        data=csv_data,
+        file_name="students_filtered.csv",
+        mime="text/csv"
+    )
 
 
 # ------------------- CLI -------------------
