@@ -68,7 +68,7 @@ def build_and_summarise(path: str, config: Dict[str, Any] = None):
     return G, nodes_df, edges_df, summary
 
 
-def plot_interactive_network(G: nx.Graph, color_mode: str = 'Community'):
+def plot_interactive_network(G: nx.Graph, color_mode: str = 'Community', selected_node: str | None = None, highlight_neighbors: bool = True):
     if go is None:
         raise RuntimeError("Plotly not installed. Please pip install plotly.")
     # Build edge traces with optional color per edge
@@ -146,6 +146,13 @@ def plot_interactive_network(G: nx.Graph, color_mode: str = 'Community'):
     text = []
     marker_color_vals = []
     node_ids = []
+    node_sizes = []
+    node_line_widths = []
+    node_line_colors = []
+    # Precompute neighbors for highlighting
+    neighbors = set()
+    if selected_node and selected_node in G.nodes and highlight_neighbors:
+        neighbors = set(G.neighbors(selected_node))
     for idx, (n, data) in enumerate(G.nodes(data=True)):
         x, y = pos[n]
         node_x.append(x)
@@ -154,11 +161,25 @@ def plot_interactive_network(G: nx.Graph, color_mode: str = 'Community'):
         text.append(
             f"{data.get('label', n)}<br>cgpa={data.get('cgpa','NA')}<br>hostel={data.get('hostel','')}<br>mess={data.get('mess','')}<br>community={data.get('community')}"
         )
+        # determine base color
         if color_mode == 'Community':
             comm = data.get("community", -1)
             marker_color_vals.append(comm if comm >= 0 else -1)
         else:
             marker_color_vals.append(node_colors[idx])
+        # sizes / line for highlight
+        if selected_node and n == selected_node:
+            node_sizes.append(26)
+            node_line_widths.append(3)
+            node_line_colors.append('#ff0000')
+        elif n in neighbors:
+            node_sizes.append(18)
+            node_line_widths.append(2)
+            node_line_colors.append('#444444')
+        else:
+            node_sizes.append(14)
+            node_line_widths.append(1)
+            node_line_colors.append('#111111')
 
     node_trace = go.Scatter(
         x=node_x,
@@ -171,9 +192,9 @@ def plot_interactive_network(G: nx.Graph, color_mode: str = 'Community'):
             showscale=True,
             colorscale="Viridis" if color_mode == 'Community' else None,
             color=marker_color_vals,
-            size=14,
+            size=node_sizes,
             colorbar=dict(title="Community" if color_mode == 'Community' else "Attribute"),
-            line_width=1,
+            line=dict(width=node_line_widths, color=node_line_colors),
         ),
     )
 
@@ -185,6 +206,19 @@ def plot_interactive_network(G: nx.Graph, color_mode: str = 'Community'):
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
     ))
+
+    # If a node is selected, center/zoom the view around it
+    if selected_node and selected_node in pos:
+        cx, cy = pos[selected_node]
+        xs = [p[0] for p in pos.values()]
+        ys = [p[1] for p in pos.values()]
+        span_x = max(xs) - min(xs) if xs else 1.0
+        span_y = max(ys) - min(ys) if ys else 1.0
+        span = max(span_x, span_y)
+        zoom_factor = span * 0.18
+        fig.update_layout(xaxis=dict(range=[cx - zoom_factor, cx + zoom_factor]),
+                          yaxis=dict(range=[cy - zoom_factor, cy + zoom_factor]))
+
     return fig
 
 
@@ -246,9 +280,28 @@ def run_streamlit_app():
         return
     if G.number_of_edges() == 0:
         st.warning("Graph has zero edges at current weights. Lower 'Min edge weight' or adjust weights/fields.")
+    # Search sidebar: name/id search + select to highlight
+    selected_node = None
+    search_query = st.sidebar.text_input("Search student name or id")
+    if search_query:
+        matches = []
+        for n, data in G.nodes(data=True):
+            label = str(data.get('label', n))
+            if search_query.lower() in label.lower() or search_query.lower() in str(n).lower():
+                matches.append((n, label))
+        if matches:
+            # display choices as 'Label (id)'
+            disp = [f"{lab} ({nid})" for nid, lab in matches]
+            sel = st.sidebar.selectbox("Matches", disp)
+            if sel:
+                # map back to id
+                selected_node = disp.index(sel)
+                selected_node = matches[selected_node][0]
+        else:
+            st.sidebar.info("No matches")
 
     if go:
-        fig = plot_interactive_network(G, color_mode=color_mode)
+        fig = plot_interactive_network(G, color_mode=color_mode, selected_node=selected_node)
         st.plotly_chart(fig, use_container_width=True)
         # Legend
         if color_mode == 'Hostel':
@@ -274,6 +327,26 @@ def run_streamlit_app():
                     st.json(G.nodes[node_id])
         else:
             st.caption("Install streamlit-plotly-events for clickable node details: pip install streamlit-plotly-events")
+        # Show selected node details in sidebar (from search)
+        if selected_node and selected_node in G.nodes:
+            st.sidebar.markdown("---")
+            st.sidebar.subheader("Selected student")
+            st.sidebar.write(G.nodes[selected_node].get('label', selected_node))
+            # Show key attributes
+            attrs = {k: v for k, v in G.nodes[selected_node].items() if k not in ('label',)}
+            st.sidebar.json(attrs)
+            # List direct connections sorted by weight
+            conns = []
+            for nbr in G[selected_node]:
+                w = G[selected_node][nbr].get('weight', 0)
+                conns.append((nbr, w, G[selected_node][nbr].get('shared_multi'), G[selected_node][nbr].get('shared_single')))
+            conns = sorted(conns, key=lambda x: x[1], reverse=True)
+            st.sidebar.subheader('Top connections')
+            for nbr, w, shared_multi, shared_single in conns[:20]:
+                lbl = G.nodes[nbr].get('label', nbr)
+                st.sidebar.write(f"{lbl} ({nbr}) — weight={w:.2f}")
+                if shared_multi:
+                    st.sidebar.write(f"  shared: {shared_multi}")
     else:
         st.error("Plotly not installed. Run: pip install plotly")
 
