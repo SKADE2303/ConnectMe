@@ -325,11 +325,47 @@ def graph_to_node_dataframe(G: nx.Graph) -> pd.DataFrame:
         })
     return pd.DataFrame(data)
 
+
+def build_student_table(G: nx.Graph, df: pd.DataFrame, config: Dict[str, Any] = None) -> pd.DataFrame:
+    """Build a rich student table with all attributes, metrics, and connection counts.
+    
+    Returns a DataFrame with columns: id, name, all attributes from df, degree, betweenness, community.
+    """
+    if config is None:
+        config = DEFAULT_CONFIG
+    
+    id_col = config.get("id_col", "id")
+    name_col = config.get("name_col", "name")
+    
+    data = []
+    for n, node_data in G.nodes(data=True):
+        row = {
+            "id": n,
+            "name": node_data.get("label", n),
+            "num_connections": G.degree(n),
+            "betweenness": round(node_data.get("betweenness", 0.0), 4),
+            "degree_centrality": round(node_data.get("degree_centrality", 0.0), 4),
+            "closeness_centrality": round(node_data.get("closeness_centrality", 0.0), 4),
+            "community": node_data.get("community", -1),
+        }
+        # Add original attributes from graph nodes (exclude label/list versions)
+        for k, v in node_data.items():
+            if k not in ("label",) and not k.endswith("_list"):
+                row[k] = v
+        data.append(row)
+    
+    result_df = pd.DataFrame(data)
+    # Reorder columns for clarity
+    cols = ["id", "name", "num_connections", "betweenness", "community"]
+    extra_cols = [c for c in result_df.columns if c not in cols]
+    return result_df[cols + extra_cols]
+
 __all__ = [
     "load_data",
     "build_student_graph",
     "graph_to_edge_dataframe",
     "graph_to_node_dataframe",
+    "build_student_table",
     "DEFAULT_CONFIG",
     "infer_config",
 ]
