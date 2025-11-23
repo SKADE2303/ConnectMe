@@ -360,12 +360,45 @@ def build_student_table(G: nx.Graph, df: pd.DataFrame, config: Dict[str, Any] = 
     extra_cols = [c for c in result_df.columns if c not in cols]
     return result_df[cols + extra_cols]
 
+
+def extract_ego_graph(G: nx.Graph, node_id: str, include_edges_between_neighbors: bool = True) -> nx.Graph:
+    """Extract ego graph (node + neighbors) from a larger graph.
+    
+    Args:
+        G: Full graph
+        node_id: Center node ID
+        include_edges_between_neighbors: If True, include edges between neighbors (default True)
+    
+    Returns:
+        Ego subgraph
+    """
+    if node_id not in G.nodes:
+        return nx.Graph()
+    
+    # Get neighbors (excluding center)
+    neighbors = set(G.neighbors(node_id))
+    nodes_to_include = {node_id} | neighbors
+    
+    # Extract subgraph
+    ego = G.subgraph(nodes_to_include).copy()
+    
+    # If not including inter-neighbor edges, remove them
+    if not include_edges_between_neighbors:
+        edges_to_remove = []
+        for u, v in ego.edges():
+            if u != node_id and v != node_id:
+                edges_to_remove.append((u, v))
+        ego.remove_edges_from(edges_to_remove)
+    
+    return ego
+
 __all__ = [
     "load_data",
     "build_student_graph",
     "graph_to_edge_dataframe",
     "graph_to_node_dataframe",
     "build_student_table",
+    "extract_ego_graph",
     "DEFAULT_CONFIG",
     "infer_config",
 ]

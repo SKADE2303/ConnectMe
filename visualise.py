@@ -9,6 +9,7 @@ from data import (
     graph_to_node_dataframe,
     graph_to_edge_dataframe,
     build_student_table,
+    extract_ego_graph,
     DEFAULT_CONFIG,
     compute_graph_metrics,
     infer_config,
@@ -208,18 +209,106 @@ def plot_interactive_network(G: nx.Graph, color_mode: str = 'Community', selecte
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
     ))
 
-    # If a node is selected, center/zoom the view around it
-    if selected_node and selected_node in pos:
-        cx, cy = pos[selected_node]
-        xs = [p[0] for p in pos.values()]
-        ys = [p[1] for p in pos.values()]
-        span_x = max(xs) - min(xs) if xs else 1.0
-        span_y = max(ys) - min(ys) if ys else 1.0
-        span = max(span_x, span_y)
-        zoom_factor = span * 0.18
-        fig.update_layout(xaxis=dict(range=[cx - zoom_factor, cx + zoom_factor]),
-                          yaxis=dict(range=[cy - zoom_factor, cy + zoom_factor]))
+    return fig
 
+
+def plot_ego_network(ego_graph: nx.Graph, center_node_id: str, color_mode: str = 'Community'):
+    """Plot ego graph (center node + neighbors) with edge labels showing similarity."""
+    if go is None or ego_graph.number_of_nodes() == 0:
+        return None
+    
+    # Use circular layout centered at origin, neighbors around the perimeter
+    pos = nx.spring_layout(ego_graph, k=2, iterations=50, seed=42)
+    
+    # Build edge traces with labels
+    edge_traces = []
+    edge_labels_x = []
+    edge_labels_y = []
+    edge_labels_text = []
+    
+    for u, v, d in ego_graph.edges(data=True):
+        x0, y0 = pos[u]
+        x1, y1 = pos[v]
+        weight = d.get('weight', 0)
+        shared_multi = d.get('shared_multi', {})
+        
+        # Create hover text for edge
+        hover_text = f"Weight: {weight:.2f}"
+        if shared_multi:
+            for field, items in shared_multi.items():
+                hover_text += f"\n{field}: {', '.join(items)}"
+        
+        edge_traces.append(go.Scatter(
+            x=[x0, x1, None],
+            y=[y0, y1, None],
+            mode='lines',
+            hoverinfo='text',
+            text=hover_text,
+            line=dict(width=2, color='#888'),
+            showlegend=False
+        ))
+        
+        # Add edge label at midpoint
+        mid_x, mid_y = (x0 + x1) / 2, (y0 + y1) / 2
+        edge_labels_x.append(mid_x)
+        edge_labels_y.append(mid_y)
+        edge_labels_text.append(f"{weight:.1f}")
+    
+    # Build node trace
+    node_x = []
+    node_y = []
+    node_text = []
+    node_size = []
+    node_color = []
+    
+    for n, d in ego_graph.nodes(data=True):
+        x, y = pos[n]
+        node_x.append(x)
+        node_y.append(y)
+        
+        # Center node is larger and red
+        if n == center_node_id:
+            node_size.append(40)
+            node_color.append('#ff0000')
+        else:
+            node_size.append(20)
+            node_color.append('#1f77b4' if color_mode == 'Community' else '#888')
+        
+        label = d.get('label', n)
+        cgpa = d.get('cgpa', 'N/A')
+        node_text.append(f"{label}<br>CGPA: {cgpa}")
+    
+    node_trace = go.Scatter(
+        x=node_x, y=node_y,
+        mode='markers+text',
+        text=[n for n in ego_graph.nodes()],
+        textposition='top center',
+        hoverinfo='text',
+        hovertext=node_text,
+        marker=dict(size=node_size, color=node_color, line=dict(width=2, color='white')),
+        showlegend=False
+    )
+    
+    # Edge labels trace
+    edge_label_trace = go.Scatter(
+        x=edge_labels_x, y=edge_labels_y,
+        text=edge_labels_text,
+        mode='text',
+        hoverinfo='none',
+        showlegend=False
+    )
+    
+    fig = go.Figure(data=edge_traces + [node_trace, edge_label_trace], layout=go.Layout(
+        title=f"Ego Network: {ego_graph.nodes[center_node_id].get('label', center_node_id)}",
+        showlegend=False,
+        hovermode='closest',
+        margin=dict(b=20, l=20, r=20, t=40),
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        plot_bgcolor='#111111',
+        paper_bgcolor='#111111',
+        font=dict(color='white')
+    ))
     return fig
 
 
@@ -304,6 +393,18 @@ def run_streamlit_app():
     if go:
         fig = plot_interactive_network(G, color_mode=color_mode, selected_node=selected_node)
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Display ego graph if a node is selected
+        if selected_node and selected_node in G.nodes:
+            st.subheader("Ego Network")
+            ego = extract_ego_graph(G, selected_node, include_edges_between_neighbors=True)
+            if ego.number_of_nodes() > 1:
+                ego_fig = plot_ego_network(ego, selected_node, color_mode=color_mode)
+                if ego_fig:
+                    st.plotly_chart(ego_fig, use_container_width=True)
+            else:
+                st.info("No connections for this student in current graph.")
+        
         # Legend
         if color_mode == 'Hostel':
             for k, v in HOSTEL_COLOR_MAP.items():
