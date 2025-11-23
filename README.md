@@ -70,42 +70,8 @@ Weights (in sidebar) affect edge formation and density:
 
 Reduce `min edge weight` if graph is too sparse; increase if too dense.
 
-## What to commit to Git
-Include only source & reproducible assets:
-- `data.py`
-- `visualise.py`
-- `README.md`
-- `requirements.txt`
-- Optionally a sample data file (`test.csv`) for demonstration.
-
-Exclude / add to `.gitignore`:
-- Generated temporary upload files (`_uploaded_tmp*`)
-- `__pycache__/` directories
-- Editor / environment / virtualenv folders (`.venv/`, etc.)
-- Lock files like `.~lock.test.csv#`
-
-Create a `.gitignore` with:
-```
-__pycache__/
-_uploaded_tmp*
-.~lock.*
-*.pyc
-.venv/
-```
 
 ## Contributing
 1. Fork & create a feature branch.
 2. Ensure new dependencies go into `requirements.txt`.
 3. Provide clear commit messages & update README if behaviour changes.
-
-## License
-Add appropriate license (e.g. MIT) here.
-
-## Future improvements
-- Add per-field filter (show only nodes sharing specific club / sport dynamically).
-- Persist configuration selections.
-- Integrate community layout or hierarchical clustering.
-- Export interactive dashboard summary metrics.
-
----
-Made with NetworkX, Plotly, and Streamlit.
