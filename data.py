@@ -77,28 +77,27 @@ def _split_multi_value(value: str) -> List[str]:
 def preprocess(df: pd.DataFrame, config: Dict[str, Any] = None) -> pd.DataFrame:
     """Expand multi-valued fields into list form for later intersection computation.
 
-    Additionally aggregates multiple single club columns (e.g., Club1, Club2, ...) into one synthetic
-    multi-valued field 'clubs' if not already present, so they contribute to similarity by intersection.
+    Assumes a single 'clubs' column already exists (comma / semicolon separated) and
+    no longer aggregates Club1 / Club2 style columns.
     """
     if config is None:
         config = DEFAULT_CONFIG
     df = df.copy()
 
-    # Aggregate club columns like Club1, Club2 into 'clubs'
+    # If legacy Club1/Club2 still appear, merge them into 'clubs' only if 'clubs' absent
     club_cols = [c for c in df.columns if re.match(r"club\d+", c, re.I)]
-    if club_cols and 'clubs' not in df.columns:
+    if 'clubs' not in df.columns and club_cols:
         df['clubs'] = df[club_cols].apply(lambda row: [v.strip().lower() for v in row if isinstance(v, str) and v.strip()], axis=1)
-        # Ensure uniqueness preserving order
         df['clubs'] = df['clubs'].apply(lambda lst: list(dict.fromkeys(lst)))
         if 'clubs' not in config.get('multi_fields', []):
             config['multi_fields'] = list(config.get('multi_fields', [])) + ['clubs']
-        # Remove original club columns from single_fields if present
-        if 'single_fields' in config:
-            config['single_fields'] = [c for c in config['single_fields'] if c not in club_cols]
 
+    # Split multi-valued fields (including clubs if present)
     for field in config.get("multi_fields", []):
         if field in df.columns:
-            df[field] = df[field].apply(_split_multi_value if df[field].dtype == object else (lambda x: x)) if field != 'clubs' else df[field]
+            if field == 'clubs' and isinstance(df[field].iloc[0], list):
+                continue  # already list
+            df[field] = df[field].apply(_split_multi_value)
     return df
 
 

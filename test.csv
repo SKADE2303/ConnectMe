@@ -1,11 +1,21 @@
-ID,Name,CGPA,Hostel,Mess,Sports,Club1,Club2
-S001,Aditi Sharma,8.4,H1,M2,Basketball,Robotics, Music
-S002,Rahul Verma,7.9,H2,M1,Football,Drama, Robotics
-S003,Sneha Gupta,9.1,H1,M3,Badminton,Literature, Music
-S004,Arjun Kumar,8.7,H3,M2,Basketball,Robotics, Debate
-S005,Kavya Singh,7.2,H2,M1,Football,Dance, Drama
-S006,Nikhil Rao,8.8,H4,M4,Cricket,Debate, Literature
-S007,Priya Menon,9,H1,M2,Basketball,Music, Dance
-S008,Varun Patel,8.5,H3,M3,Badminton,Robotics, Debate
-S009,Ishita Roy,7.8,H4,M4,Cricket,Literature, Dance
-S010,Manav Khanna,8.2,H2,M2,Football,Robotics, Debate
+ID,Name,CGPA,Hostel,Mess,Sports,Clubs
+S001,Aditi Sharma,8.4,H1,M2,Basketball,"Robotics, Music, Dance"
+S002,Rahul Verma,7.9,H2,M1,Football,Drama
+S003,Sneha Gupta,9.1,H1,M3,Badminton,"Literature, Debate, Robotics, Music"
+S004,Arjun Kumar,8.7,H3,M2,Basketball,
+S005,Kavya Singh,7.2,H2,M1,Football,"Debate, Robotics, Dance"
+S006,Nikhil Rao,8.8,H4,M4,Cricket,"Music, Drama, Literature, Robotics, Dance"
+S007,Priya Menon,9,H1,M2,Basketball,"Dance, Literature"
+S008,Varun Patel,8.5,H3,M3,Badminton,"Robotics, Drama"
+S009,Ishita Roy,7.8,H4,M4,Cricket,Music
+S010,Manav Khanna,8.2,H2,M2,Football,"Debate, Literature, Robotics"
+S011,Rohan Mehta,8.6,H3,M1,Cricket,"Music, Dance, Drama"
+S012,Meera Joshi,7.5,H2,M3,Basketball,
+S013,Adarsh Nair,8.9,H1,M4,Football,"Dance, Music, Debate, Literature"
+S014,Tanya Kapoor,9.2,H4,M2,Badminton,"Robotics, Music, Drama, Debate, Literature"
+S015,Harshit Bansal,7.8,H2,M1,Cricket,"Drama, Dance"
+S016,Ananya Desai,8.3,H3,M2,Football,"Music, Literature"
+S017,Siddharth Jain,8.7,H1,M3,Basketball,"Literature, Robotics, Debate"
+S018,Pooja Rathod,9,H4,M4,Badminton,"Robotics, Music, Dance, Drama"
+S019,Abhinav Sethi,7.6,H2,M2,Cricket,"Music, Debate"
+S020,Neha Kulkarni,8.5,H3,M1,Football,"Dance, Literature, Robotics"
